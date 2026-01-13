@@ -21,13 +21,23 @@ interface AlbumCarouselProps {
   albums: Album[]
 }
 
-const MAX_VISIBLE = 25 // Show ~25 albums to cover -24° to +24° range
-const MIN_ANGLE = -24
-const MAX_ANGLE = 24
-const DEFAULT_ANGLE_STEP = 2 // Default angular spacing between adjacent albums
-const DEFAULT_RADIUS = 9000 // Default radius for trigonometric positioning
-const MIN_RADIUS = 2000
-const MAX_RADIUS = 10000
+import {
+  MAX_VISIBLE,
+  MIN_ANGLE,
+  MAX_ANGLE,
+  DEFAULT_ANGLE_STEP,
+  DEFAULT_RADIUS,
+  MIN_RADIUS,
+  MAX_RADIUS,
+  DEFAULT_COVER_SCALE,
+  DEFAULT_DAMPING,
+  DEFAULT_SPRING_STRENGTH,
+  MIN_VELOCITY,
+  SNAP_THRESHOLD,
+  SENSITIVITY,
+  FRAME_RATE,
+  DEBUGGER_VISIBLE,
+} from '@/constants/carousel'
 const MIN_ANGLE_STEP = 1
 const MAX_ANGLE_STEP = 3
 
@@ -36,9 +46,9 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
   const totalAlbums = albums.length
   const [viewportWidth, setViewportWidth] = useState(1920) // Default, will update
   const [radius, setRadius] = useState(DEFAULT_RADIUS) // Adjustable radius
-  const [coverScale, setCoverScale] = useState(0.36) // Cover art scaling factor (default 0.36 = 36% of viewport)
-  const [damping, setDamping] = useState(0.85) // Damping coefficient (adjustable)
-  const [springStrength, setSpringStrength] = useState(0.15) // Spring strength (adjustable, range 0.0-1.0)
+  const [coverScale, setCoverScale] = useState(DEFAULT_COVER_SCALE) // Cover art scaling factor
+  const [damping, setDamping] = useState(DEFAULT_DAMPING) // Damping coefficient (adjustable)
+  const [springStrength, setSpringStrength] = useState(DEFAULT_SPRING_STRENGTH) // Spring strength (adjustable)
   
   // Calculate album size as viewportWidth * coverScale
   const albumSize = Math.floor(viewportWidth * coverScale)
@@ -91,11 +101,6 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
   const currentRotationRef = useRef(0) // Track current rotation for spring physics
   const animationFrameRef = useRef<number | null>(null)
   const lastFrameTimeRef = useRef<number>(0) // Track time for frame-based calculations
-  
-  const MIN_VELOCITY = 0.1 // Stop when velocity is below this threshold (degrees per second)
-  const SNAP_THRESHOLD = 0.05 // Snap to target when within this threshold (degrees)
-  const SENSITIVITY = 0.15 // Degrees per pixel
-  const FRAME_RATE = 60 // Target frame rate for calculations
   
   // Calculate target rotation snapped to nearest ANGLE_STEP increment
   const snapToAngleStep = (rotation: number): number => {
@@ -534,10 +539,9 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
             >
               <div className={styles.albumImageContainer}>
                 <img
-                  src={getAlbumImagePath(album.filename, 2)}
+                  src={getAlbumImagePath(album.filename, 1)}
                   alt={parseAlbumFilename(album.filename).title}
                   className={styles.albumImage}
-                  srcSet={getAlbumImageSrcSet(album.filename)}
                   width={size}
                   height={size}
                 />
@@ -547,7 +551,8 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
         })}
       </div>
       
-      {/* Temporary UI Controls */}
+      {/* Debug UI Controls */}
+      {DEBUGGER_VISIBLE && (
       <Box
         sx={{
           position: 'absolute',
@@ -703,6 +708,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           />
         </Box>
       </Box>
+      )}
     </div>
   )
 }

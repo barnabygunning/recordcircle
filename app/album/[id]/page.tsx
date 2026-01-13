@@ -62,10 +62,9 @@ export default function AlbumPage() {
       <div className={styles.content}>
         <div className={styles.albumArtContainer}>
           <img
-            src={getAlbumImagePath(album.filename, 3)}
+            src={getAlbumImagePath(album.filename, 2)}
             alt={title}
             className={styles.albumArt}
-            srcSet={getAlbumImageSrcSet(album.filename)}
             width={600}
             height={600}
           />
