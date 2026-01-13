@@ -30,6 +30,8 @@ import {
   MIN_RADIUS,
   MAX_RADIUS,
   DEFAULT_COVER_SCALE,
+  MIN_COVER_SCALE,
+  MAX_COVER_SCALE,
   DEFAULT_DAMPING,
   DEFAULT_SPRING_STRENGTH,
   MIN_VELOCITY,
@@ -49,6 +51,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
   const [coverScale, setCoverScale] = useState(DEFAULT_COVER_SCALE) // Cover art scaling factor
   const [damping, setDamping] = useState(DEFAULT_DAMPING) // Damping coefficient (adjustable)
   const [springStrength, setSpringStrength] = useState(DEFAULT_SPRING_STRENGTH) // Spring strength (adjustable)
+  const [debuggerVisible, setDebuggerVisible] = useState(DEBUGGER_VISIBLE) // Debugger UI visibility (toggleable with '=' key)
   
   // Calculate album size as viewportWidth * coverScale
   const albumSize = Math.floor(viewportWidth * coverScale)
@@ -84,6 +87,19 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
     updateViewportWidth()
     window.addEventListener('resize', updateViewportWidth)
     return () => window.removeEventListener('resize', updateViewportWidth)
+  }, [])
+
+  // Keyboard event handler to toggle debugger visibility with '=' key
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Check if '=' key is pressed (also handles '+' without shift)
+      if (e.key === '=' || e.key === '+') {
+        setDebuggerVisible(prev => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
   }, [])
 
   const [visibleAlbums, setVisibleAlbums] = useState<VisibleAlbum[]>(initializeVisibleAlbums)
@@ -512,7 +528,8 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           // Z position for 3D depth effect
           // Center albums (angle ~0) should be closer (higher z), side albums further (lower z)
           // Using cos gives us: cos(0) = 1 (closest), cos(90) = 0 (furthest)
-          const zOffset = -Math.cos(angleRad) * 200 // Negative z is "into screen", so center albums are less negative
+          // Use radius to match xOffset for proper circular arrangement
+          const zOffset = -Math.cos(angleRad) * radius // Negative z is "into screen", so center albums are less negative
           
           // Rotate album about vertical axis to face center
           // Albums rotate by -effectiveAngle to face forward
@@ -552,7 +569,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
       </div>
       
       {/* Debug UI Controls */}
-      {DEBUGGER_VISIBLE && (
+      {debuggerVisible && (
       <Box
         sx={{
           position: 'absolute',
@@ -623,12 +640,12 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           >
             Cover Scale: {coverScale.toFixed(2)}
           </Typography>
-          <Slider
-            value={coverScale}
-            onChange={(_, value) => setCoverScale(value as number)}
-            min={0.1}
-            max={1.0}
-            step={0.05}
+           <Slider
+             value={coverScale}
+             onChange={(_, value) => setCoverScale(value as number)}
+             min={MIN_COVER_SCALE}
+             max={MAX_COVER_SCALE}
+             step={0.05}
             sx={{
               color: 'white',
               '& .MuiSlider-thumb': {
