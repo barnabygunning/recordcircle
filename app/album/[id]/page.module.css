@@ -1,0 +1,126 @@
+.container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backgroundImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+  background-image: url('/backgrounds/@1x/golden_nugget@1x.jpg');
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .backgroundImage {
+    background-image: url('/backgrounds/@2x/golden_nugget@2x.jpg');
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 4), (min-resolution: 384dpi) {
+  .backgroundImage {
+    background-image: url('/backgrounds/@4x/golden_nugget@4x.jpg');
+  }
+}
+
+.backgroundImage::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.4),
+    rgba(0, 0, 0, 0.6)
+  );
+}
+
+.backButton {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  z-index: 20;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  padding: 2rem;
+}
+
+.albumArtContainer {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.albumArt {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  display: block;
+}
+
+.playerControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.controlButton {
+  border-radius: 50% !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.controlButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.controlButton:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .content {
+    gap: 2rem;
+  }
+
+  .albumArtContainer {
+    max-width: 400px;
+  }
+
+  .playerControls {
+    gap: 1.5rem;
+  }
+
+  .controlButton {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .controlButton:nth-child(2) {
+    width: 72px !important;
+    height: 72px !important;
+  }
+}
