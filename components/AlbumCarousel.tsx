@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Slider, Box, Typography, ToggleButtonGroup, ToggleButton, Button, IconButton } from '@mui/material'
-import { Settings, ViewCarousel, Album } from '@mui/icons-material'
+import { ViewCarousel, Album } from '@mui/icons-material'
 import styles from './AlbumCarousel.module.css'
 import { getAlbumImagePath, getAlbumImageSrcSet, parseAlbumFilename } from '@/utils/imageUtils'
 
@@ -633,29 +633,6 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           )
         })}
       </div>
-      
-      {/* Settings toggle button - bottom left, mirrors user button in top right */}
-      <Box
-        data-settings-panel
-        sx={{
-          position: 'absolute',
-          bottom: '2rem',
-          left: '2rem',
-          zIndex: 1000,
-        }}
-      >
-        <IconButton
-          onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
-          aria-label="Toggle carousel settings"
-          sx={{
-            color: 'white',
-            backgroundColor: settingsVisible ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-          }}
-        >
-          <Settings />
-        </IconButton>
-      </Box>
       
       {/* Carousel Settings - press '=' to toggle */}
       {settingsVisible && (

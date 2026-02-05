@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import { TextField, IconButton } from '@mui/material'
-import { Search, Person } from '@mui/icons-material'
+import { Search, Person, Settings } from '@mui/icons-material'
 import AlbumCarousel from '@/components/AlbumCarousel'
 import { albums } from '@/data/albums'
+import { useCarousel } from '@/contexts/CarouselContext'
 import styles from './page.module.css'
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
+  const { settingsVisible, updateSettings } = useCarousel()
 
   return (
     <div className={styles.container}>
@@ -57,6 +59,20 @@ export default function Home() {
       <div className={styles.carouselContainer}>
         <AlbumCarousel albums={albums} />
       </div>
+
+      <footer className={styles.footer}>
+        <IconButton
+          onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
+          aria-label="Toggle carousel settings"
+          sx={{
+            color: 'white',
+            backgroundColor: settingsVisible ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+          }}
+        >
+          <Settings />
+        </IconButton>
+      </footer>
     </div>
   )
 }
