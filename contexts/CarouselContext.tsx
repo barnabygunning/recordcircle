@@ -8,6 +8,7 @@ import {
   DEFAULT_CENTRAL_ALBUM_SCALE,
   DEFAULT_VIEW_MODE,
   DEFAULT_PLAN_VIEW_TILT,
+  DEFAULT_PLAN_CENTER_ABOVE,
   DEFAULT_PERSPECTIVE,
   DEFAULT_ANGLE_STEP,
   SENSITIVITY,
@@ -23,6 +24,7 @@ export interface CarouselSettings {
   centralAlbumScale: number
   viewMode: ViewMode
   planViewTilt: number
+  planCenterAbove: boolean
   perspective: number
   angleStep: number
   sensitivity: number
@@ -38,6 +40,7 @@ const DEFAULT_SETTINGS: CarouselSettings = {
   centralAlbumScale: DEFAULT_CENTRAL_ALBUM_SCALE,
   viewMode: DEFAULT_VIEW_MODE,
   planViewTilt: DEFAULT_PLAN_VIEW_TILT,
+  planCenterAbove: DEFAULT_PLAN_CENTER_ABOVE,
   perspective: DEFAULT_PERSPECTIVE,
   angleStep: DEFAULT_ANGLE_STEP,
   sensitivity: SENSITIVITY,

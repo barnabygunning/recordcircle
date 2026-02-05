@@ -29,6 +29,9 @@ export const DEFAULT_PLAN_VIEW_TILT = 90
 export const MIN_PLAN_VIEW_TILT = 45
 export const MAX_PLAN_VIEW_TILT = 90
 
+// Plan view: center position (true = above viewport, false = below viewport)
+export const DEFAULT_PLAN_CENTER_ABOVE = true
+
 // Perspective (camera distance) - higher = flatter, lower = more pronounced 3D
 export const DEFAULT_PERSPECTIVE = 3000
 export const MIN_PERSPECTIVE = 500

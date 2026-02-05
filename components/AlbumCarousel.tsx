@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Slider, Box, Typography, ToggleButtonGroup, ToggleButton, Button, IconButton } from '@mui/material'
-import { ViewCarousel, Album } from '@mui/icons-material'
+import { ViewCarousel, Album, ArrowCircleUp, ArrowCircleDown } from '@mui/icons-material'
 import styles from './AlbumCarousel.module.css'
 import { getAlbumImagePath, getAlbumImageSrcSet, parseAlbumFilename } from '@/utils/imageUtils'
 
@@ -38,6 +38,7 @@ import {
   MAX_CENTRAL_ALBUM_SCALE,
   DEFAULT_VIEW_MODE,
   DEFAULT_PLAN_VIEW_TILT,
+  DEFAULT_PLAN_CENTER_ABOVE,
   MIN_PLAN_VIEW_TILT,
   MAX_PLAN_VIEW_TILT,
   MIN_ANGLE_STEP,
@@ -66,6 +67,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
     centralAlbumScale,
     viewMode,
     planViewTilt,
+    planCenterAbove,
     perspective,
     angleStep,
     sensitivity,
@@ -525,6 +527,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
       coverScale: DEFAULT_COVER_SCALE,
       viewMode: DEFAULT_VIEW_MODE,
       planViewTilt: DEFAULT_PLAN_VIEW_TILT,
+      planCenterAbove: DEFAULT_PLAN_CENTER_ABOVE,
       perspective: DEFAULT_PERSPECTIVE,
       sensitivity: SENSITIVITY,
       damping: DEFAULT_DAMPING,
@@ -546,7 +549,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
         style={{
           cursor: isDragging ? 'grabbing' : 'grab',
           transform: viewMode === 'plan'
-            ? `translateY(${-radius * Math.sin((planViewTilt * Math.PI) / 180)}px) rotateX(${planViewTilt}deg)`
+            ? `translateY(${(planCenterAbove ? -1 : 1) * radius * Math.sin((planViewTilt * Math.PI) / 180)}px) rotateX(${planViewTilt}deg)`
             : undefined,
         }}
       >
@@ -718,7 +721,27 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
         {sliderControl('Cover scale', coverScale, (v) => updateSettings({ coverScale: v }), MIN_COVER_SCALE, MAX_COVER_SCALE, 0.05, (v) => `${Math.round(v * 100)}%`)}
         {sliderControl('Central album scale', centralAlbumScale, (v) => updateSettings({ centralAlbumScale: v }), MIN_CENTRAL_ALBUM_SCALE, MAX_CENTRAL_ALBUM_SCALE, 0.05, (v) => `${Math.round(v * 100)}%`)}
         
-        {viewMode === 'plan' && sliderControl('Plan tilt', planViewTilt, (v) => updateSettings({ planViewTilt: v }), MIN_PLAN_VIEW_TILT, MAX_PLAN_VIEW_TILT, 1, (v) => `${v}°`)}
+        {viewMode === 'plan' && (
+          <>
+            {sliderControl('Plan tilt', planViewTilt, (v) => updateSettings({ planViewTilt: v }), MIN_PLAN_VIEW_TILT, MAX_PLAN_VIEW_TILT, 1, (v) => `${v}°`)}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <Typography variant="caption" sx={{ color: 'white' }}>
+                Center position:
+              </Typography>
+              <IconButton
+                onClick={() => updateSettings({ planCenterAbove: !planCenterAbove })}
+                aria-label={planCenterAbove ? 'Center above viewport' : 'Center below viewport'}
+                sx={{
+                  color: 'white',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+                }}
+              >
+                {planCenterAbove ? <ArrowCircleUp /> : <ArrowCircleDown />}
+              </IconButton>
+            </Box>
+          </>
+        )}
         
         {sliderControl('Perspective', perspective, (v) => updateSettings({ perspective: v }), MIN_PERSPECTIVE, MAX_PERSPECTIVE, 100, (v) => `${v}px`)}
         {sliderControl('Sensitivity', sensitivity, (v) => updateSettings({ sensitivity: v }), 0.05, 0.5, 0.01, (v) => v.toFixed(2))}
