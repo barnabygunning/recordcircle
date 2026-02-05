@@ -549,7 +549,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
         style={{
           cursor: isDragging ? 'grabbing' : 'grab',
           transform: viewMode === 'plan'
-            ? `translateY(${(planCenterAbove ? -1 : 1) * radius * Math.sin((planViewTilt * Math.PI) / 180)}px) rotateX(${planViewTilt}deg)`
+            ? `translateY(${(planCenterAbove ? -1 : 1) * radius * Math.sin((planViewTilt * Math.PI) / 180)}px) rotateX(${planCenterAbove ? planViewTilt : -planViewTilt}deg)`
             : undefined,
         }}
       >
@@ -582,8 +582,8 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           
           // Rotate album about vertical axis to face center (tangent to ring)
           const rotationY = -effectiveAngle
-          // Plan view: albums lie flat (rotateX -90°) like records on a turntable
-          const rotationX = viewMode === 'plan' ? -90 : 0
+          // Plan view: albums lie flat like records on a turntable (flip when center below)
+          const rotationX = viewMode === 'plan' ? (planCenterAbove ? -90 : 90) : 0
           
           // Z-index: center album (absAngle = 0) should be highest
           const zIndex = Math.round(1000 + (MAX_ANGLE - absAngle) * 10)
