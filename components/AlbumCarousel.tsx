@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Slider, Box, Typography, ToggleButtonGroup, ToggleButton, Button, IconButton } from '@mui/material'
-import { ViewCarousel, Album, ArrowCircleUp, ArrowCircleDown } from '@mui/icons-material'
+import { ViewCarousel, Album, ArrowCircleUp, ArrowCircleDown, Close } from '@mui/icons-material'
 import styles from './AlbumCarousel.module.css'
 import { getAlbumImagePath, getAlbumImageSrcSet, parseAlbumFilename } from '@/utils/imageUtils'
 
@@ -662,6 +662,19 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           gap: '1rem',
         }}
       >
+        <IconButton
+          onClick={() => updateSettings({ settingsVisible: false })}
+          aria-label="Close settings"
+          sx={{
+            position: 'absolute',
+            top: '0.5rem',
+            right: '0.5rem',
+            color: 'white',
+            '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' },
+          }}
+        >
+          <Close />
+        </IconButton>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
             Carousel Settings

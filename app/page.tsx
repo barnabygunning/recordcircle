@@ -17,16 +17,29 @@ export default function Home() {
       <div className={styles.backgroundImage} />
       
       <div className={styles.header}>
-        <IconButton 
-          className={styles.userButton}
-          sx={{ 
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
-          }}
-        >
-          <Person />
-        </IconButton>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <IconButton
+            onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
+            aria-label="Toggle carousel settings"
+            sx={{
+              color: 'white',
+              backgroundColor: settingsVisible ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+            }}
+          >
+            <Settings />
+          </IconButton>
+          <IconButton 
+            className={styles.userButton}
+            sx={{ 
+              color: 'white',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+            }}
+          >
+            <Person />
+          </IconButton>
+        </div>
         
         <TextField
           className={styles.searchField}
@@ -58,20 +71,6 @@ export default function Home() {
 
       <div className={styles.carouselContainer}>
         <AlbumCarousel albums={albums} />
-      </div>
-
-      <div className={styles.footer}>
-        <IconButton
-          onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
-          aria-label="Toggle carousel settings"
-          sx={{
-            color: 'white',
-            backgroundColor: settingsVisible ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
-            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-          }}
-        >
-          <Settings />
-        </IconButton>
       </div>
     </div>
   )
