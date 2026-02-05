@@ -1,8 +1,31 @@
 .container {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
+  touch-action: none;
+  box-sizing: border-box;
+}
+
+/* Mobile: force full height */
+@media screen and (max-width: 768px) {
+  .container {
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    position: fixed !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Safari: -webkit-fill-available fallback */
+@supports (-webkit-touch-callout: none) {
+  .container {
+    min-height: -webkit-fill-available !important;
+    height: -webkit-fill-available !important;
+  }
 }
 
 .backgroundImage {
@@ -50,7 +73,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2rem;
+  padding: calc(2rem + env(safe-area-inset-top, 0px)) calc(2rem + env(safe-area-inset-right, 0px)) 2rem calc(2rem + env(safe-area-inset-left, 0px));
   width: 100%;
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TextField, IconButton } from '@mui/material'
 import { Search, Person, Settings } from '@mui/icons-material'
 import AlbumCarousel from '@/components/AlbumCarousel'
@@ -11,6 +11,28 @@ import styles from './page.module.css'
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const { settingsVisible, updateSettings } = useCarousel()
+
+  // Prevent page-level scrolling; lock layout for mobile
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+
+    return () => {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+      document.body.style.position = ''
+    }
+  }, [])
+
+  // Safari: encourage toolbar to hide on load and first interaction
+  useEffect(() => {
+    const hideToolbar = () => window.scrollTo(0, 1)
+    hideToolbar()
+    window.addEventListener('touchstart', hideToolbar, { passive: true })
+    window.addEventListener('click', hideToolbar, { once: true })
+    return () => window.removeEventListener('touchstart', hideToolbar)
+  }, [])
 
   return (
     <div className={styles.container}>
