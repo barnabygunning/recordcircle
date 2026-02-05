@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Slider, Box, Typography } from '@mui/material'
+import { Slider, Box, Typography, ToggleButtonGroup, ToggleButton, Button, IconButton } from '@mui/material'
+import { Settings, ViewCarousel, Album } from '@mui/icons-material'
 import styles from './AlbumCarousel.module.css'
 import { getAlbumImagePath, getAlbumImageSrcSet, parseAlbumFilename } from '@/utils/imageUtils'
 
@@ -32,79 +33,109 @@ import {
   DEFAULT_COVER_SCALE,
   MIN_COVER_SCALE,
   MAX_COVER_SCALE,
+  DEFAULT_CENTRAL_ALBUM_SCALE,
+  MIN_CENTRAL_ALBUM_SCALE,
+  MAX_CENTRAL_ALBUM_SCALE,
+  DEFAULT_VIEW_MODE,
+  DEFAULT_PLAN_VIEW_TILT,
+  MIN_PLAN_VIEW_TILT,
+  MAX_PLAN_VIEW_TILT,
+  MIN_ANGLE_STEP,
+  MAX_ANGLE_STEP,
+  DEFAULT_PERSPECTIVE,
+  MIN_PERSPECTIVE,
+  MAX_PERSPECTIVE,
   DEFAULT_DAMPING,
   DEFAULT_SPRING_STRENGTH,
   MIN_VELOCITY,
   SNAP_THRESHOLD,
   SENSITIVITY,
   FRAME_RATE,
-  DEBUGGER_VISIBLE,
 } from '@/constants/carousel'
-const MIN_ANGLE_STEP = 1
-const MAX_ANGLE_STEP = 3
+import type { ViewMode } from '@/constants/carousel'
+import { useCarousel } from '@/contexts/CarouselContext'
 
 export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
   const router = useRouter()
   const totalAlbums = albums.length
-  const [viewportWidth, setViewportWidth] = useState(1920) // Default, will update
-  const [radius, setRadius] = useState(DEFAULT_RADIUS) // Adjustable radius
-  const [coverScale, setCoverScale] = useState(DEFAULT_COVER_SCALE) // Cover art scaling factor
-  const [damping, setDamping] = useState(DEFAULT_DAMPING) // Damping coefficient (adjustable)
-  const [springStrength, setSpringStrength] = useState(DEFAULT_SPRING_STRENGTH) // Spring strength (adjustable)
-  const [debuggerVisible, setDebuggerVisible] = useState(DEBUGGER_VISIBLE) // Debugger UI visibility (toggleable with '=' key)
+  const {
+    carouselRotation,
+    setCarouselRotation,
+    radius,
+    coverScale,
+    centralAlbumScale,
+    viewMode,
+    planViewTilt,
+    perspective,
+    angleStep,
+    sensitivity,
+    damping,
+    springStrength,
+    settingsVisible,
+    updateSettings,
+  } = useCarousel()
+  const [viewportSize, setViewportSize] = useState({ width: 1920, height: 1080 })
   
-  // Calculate album size as viewportWidth * coverScale
-  const albumSize = Math.floor(viewportWidth * coverScale)
+  const albumSize = Math.floor(viewportSize.height * coverScale)
   
   // Initialize visible albums: centered around index 0
-  // Each album has a fixed baseAngle in the carousel
-  const initializeVisibleAlbums = (): VisibleAlbum[] => {
+  const initializeVisibleAlbums = (step: number): VisibleAlbum[] => {
     const visible: VisibleAlbum[] = []
     const centerIndex = 0
-    // Calculate how many albums we need to cover the angle range
-    const albumsNeeded = Math.ceil((MAX_ANGLE - MIN_ANGLE) / DEFAULT_ANGLE_STEP) + 1
+    const albumsNeeded = Math.ceil((MAX_ANGLE - MIN_ANGLE) / step) + 1
     const halfVisible = Math.floor(albumsNeeded / 2)
-    
     for (let i = -halfVisible; i <= halfVisible; i++) {
       const albumIndex = (centerIndex + i + totalAlbums) % totalAlbums
-      const baseAngle = i * DEFAULT_ANGLE_STEP
       visible.push({
         album: albums[albumIndex],
         albumIndex,
-        baseAngle,
+        baseAngle: i * step,
       })
     }
-    
     return visible
   }
   
-  // Update viewport width on resize
+  // Update viewport dimensions on resize
   useEffect(() => {
-    const updateViewportWidth = () => {
-      setViewportWidth(window.innerWidth)
+    const updateViewportSize = () => {
+      setViewportSize({ width: window.innerWidth, height: window.innerHeight })
     }
     
-    updateViewportWidth()
-    window.addEventListener('resize', updateViewportWidth)
-    return () => window.removeEventListener('resize', updateViewportWidth)
+    updateViewportSize()
+    window.addEventListener('resize', updateViewportSize)
+    return () => window.removeEventListener('resize', updateViewportSize)
   }, [])
 
-  // Keyboard event handler to toggle debugger visibility with '=' key
+  // Keyboard event handler to toggle settings visibility with '=' key
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Check if '=' key is pressed (also handles '+' without shift)
       if (e.key === '=' || e.key === '+') {
-        setDebuggerVisible(prev => !prev)
+        updateSettings({ settingsVisible: !settingsVisible })
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [])
+  }, [settingsVisible, updateSettings])
 
-  const [visibleAlbums, setVisibleAlbums] = useState<VisibleAlbum[]>(initializeVisibleAlbums)
-  const [carouselRotation, setCarouselRotation] = useState(0) // Global rotation of entire carousel
-  
+  const [visibleAlbums, setVisibleAlbums] = useState<VisibleAlbum[]>(() => initializeVisibleAlbums(DEFAULT_ANGLE_STEP))
+
+  // Reinitialize visible albums when angle step changes
+  useEffect(() => {
+    const visible: VisibleAlbum[] = []
+    const centerIndex = 0
+    const albumsNeeded = Math.ceil((MAX_ANGLE - MIN_ANGLE) / angleStep) + 1
+    const halfVisible = Math.floor(albumsNeeded / 2)
+    for (let i = -halfVisible; i <= halfVisible; i++) {
+      const albumIndex = (centerIndex + i + totalAlbums) % totalAlbums
+      visible.push({
+        album: albums[albumIndex],
+        albumIndex,
+        baseAngle: i * angleStep,
+      })
+    }
+    setVisibleAlbums(visible)
+  }, [angleStep, albums, totalAlbums])
   // Initialize rotation ref
   useEffect(() => {
     currentRotationRef.current = carouselRotation
@@ -113,19 +144,22 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
   const [startX, setStartX] = useState(0)
   const [shouldAnimate, setShouldAnimate] = useState(false) // Trigger to start animation
   const [targetRotation, setTargetRotation] = useState(0) // Target rotation snapped to 2° increments
+  const dragDistanceRef = useRef(0) // Track total drag distance to distinguish clicks from drags
   const rotationVelocityRef = useRef(0) // Angular velocity in degrees per second (using ref to avoid re-renders)
   const currentRotationRef = useRef(0) // Track current rotation for spring physics
   const animationFrameRef = useRef<number | null>(null)
   const lastFrameTimeRef = useRef<number>(0) // Track time for frame-based calculations
+  const lastPointerXRef = useRef(0)
+  const isDraggingRef = useRef(false)
+  const pointerDownTargetRef = useRef<Element | null>(null) // Track target for click (pointer capture prevents album onClick)
   
-  // Calculate target rotation snapped to nearest ANGLE_STEP increment
   const snapToAngleStep = (rotation: number): number => {
-    return Math.round(rotation / DEFAULT_ANGLE_STEP) * DEFAULT_ANGLE_STEP
+    return Math.round(rotation / angleStep) * angleStep
   }
 
   // Update carousel rotation and handle album replacement
   const updateCarouselRotation = useCallback((rotationDelta: number) => {
-    setCarouselRotation(prev => {
+    setCarouselRotation((prev: number) => {
       const newRotation = prev + rotationDelta
       currentRotationRef.current = newRotation // Update ref for spring physics
       
@@ -177,13 +211,10 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           }
         }
         
-        // Helper function to snap baseAngle to nearest multiple of DEFAULT_ANGLE_STEP
         const snapBaseAngle = (angle: number): number => {
-          return Math.round(angle / DEFAULT_ANGLE_STEP) * DEFAULT_ANGLE_STEP
+          return Math.round(angle / angleStep) * angleStep
         }
         
-        // Second pass: add new albums if needed to fill the range
-        // If albums went too far left (rotating right), add previous album on the left
         if (leftmostOutOfBounds) {
           const prevIndex = (leftmostOutOfBounds.albumIndex - 1 + totalAlbums) % totalAlbums
           // Check if this album is already in the visible list
@@ -195,7 +226,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
               baseAngle: snapBaseAngle(MIN_ANGLE - newRotation), // Set baseAngle so effectiveAngle = MIN_ANGLE
             })
           }
-        } else if (leftmostInBounds && leftmostInBoundsAngle > MIN_ANGLE + DEFAULT_ANGLE_STEP) {
+        } else if (leftmostInBounds && leftmostInBoundsAngle > MIN_ANGLE + angleStep) {
           // Proactively add album on left if we have room
           const prevIndex = (leftmostInBounds.albumIndex - 1 + totalAlbums) % totalAlbums
           const alreadyVisible = newAlbums.some(va => va.albumIndex === prevIndex)
@@ -203,7 +234,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
             newAlbums.unshift({
               album: albums[prevIndex],
               albumIndex: prevIndex,
-              baseAngle: snapBaseAngle((leftmostInBoundsAngle - DEFAULT_ANGLE_STEP) - newRotation),
+              baseAngle: snapBaseAngle((leftmostInBoundsAngle - angleStep) - newRotation),
             })
           }
         }
@@ -220,7 +251,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
               baseAngle: snapBaseAngle(MAX_ANGLE - newRotation), // Set baseAngle so effectiveAngle = MAX_ANGLE
             })
           }
-        } else if (rightmostInBounds && rightmostInBoundsAngle < MAX_ANGLE - DEFAULT_ANGLE_STEP) {
+        } else if (rightmostInBounds && rightmostInBoundsAngle < MAX_ANGLE - angleStep) {
           // Proactively add album on right if we have room
           const nextIndex = (rightmostInBounds.albumIndex + 1) % totalAlbums
           const alreadyVisible = newAlbums.some(va => va.albumIndex === nextIndex)
@@ -228,7 +259,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
             newAlbums.push({
               album: albums[nextIndex],
               albumIndex: nextIndex,
-              baseAngle: snapBaseAngle((rightmostInBoundsAngle + DEFAULT_ANGLE_STEP) - newRotation),
+              baseAngle: snapBaseAngle((rightmostInBoundsAngle + angleStep) - newRotation),
             })
           }
         }
@@ -258,7 +289,7 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
       
       return newRotation
     })
-  }, [albums, totalAlbums])
+  }, [albums, totalAlbums, angleStep, setCarouselRotation])
 
   // Physics animation loop
   useEffect(() => {
@@ -381,130 +412,142 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
     }
   }, [isDragging, shouldAnimate, targetRotation, damping, springStrength, updateCarouselRotation])
 
+  // Keep ref in sync for immediate checks in handlers
   useEffect(() => {
-    let lastX = startX
-    let lastTime = Date.now()
-    let velocityTracker: number[] = [] // Track recent velocities for smoothing
+    isDraggingRef.current = isDragging
+  }, [isDragging])
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return
-      const currentTime = Date.now()
-      const deltaTime = currentTime - lastTime
-      const deltaX = e.clientX - lastX
-      
-      if (deltaTime > 0) {
-        // Calculate instantaneous velocity (degrees per second)
-        // deltaX * SENSITIVITY gives degrees moved
-        // deltaTime is in milliseconds, convert to seconds
-        const instantVelocity = (deltaX * SENSITIVITY) / (deltaTime / 1000)
-        velocityTracker.push(instantVelocity)
-        
-        // Keep only last 5 velocity samples for smoothing
-        if (velocityTracker.length > 5) {
-          velocityTracker.shift()
-        }
-        
-        // Calculate average velocity (degrees per second)
-        const avgVelocity = velocityTracker.reduce((a, b) => a + b, 0) / velocityTracker.length
-        
-        // Update rotation immediately during drag
-        const rotationDelta = deltaX * SENSITIVITY
-        updateCarouselRotation(rotationDelta)
-        
-        // Update velocity for when drag ends (store in ref as degrees per second)
-        rotationVelocityRef.current = avgVelocity
-      }
-      
-      lastX = e.clientX
-      lastTime = currentTime
-    }
-
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      // Calculate target rotation based on current rotation, snapped to 2° increments
-      setCarouselRotation(current => {
-        const snappedTarget = snapToAngleStep(current)
-        setTargetRotation(snappedTarget)
-        return current
-      })
-      // Trigger animation - spring physics will pull toward target
-      setShouldAnimate(true)
-    }
-
-    if (isDragging) {
-      lastX = startX
-      lastTime = Date.now()
-      velocityTracker = []
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
-    } else {
-      // Stop tracking when not dragging
-      velocityTracker = []
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging, startX, updateCarouselRotation])
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
+  // Unified pointer handlers (mouse + touch) - use capture phase so we receive events
+  // before 3D-transform hit-testing can fail on the carousel in plan view
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.button !== undefined) return
+    // Don't capture when interacting with the settings panel (sliders, buttons, etc.)
+    if ((e.target as Element).closest('[data-settings-panel]')) return
+    pointerDownTargetRef.current = e.target as Element
+    e.currentTarget.setPointerCapture(e.pointerId)
+    isDraggingRef.current = true
     setIsDragging(true)
-    setStartX(e.clientX)
+    const x = e.clientX
+    setStartX(x)
+    lastPointerXRef.current = x
+    dragDistanceRef.current = 0
   }
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true)
-    setStartX(e.touches[0].clientX)
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return
+    if (e.pointerType === 'mouse' && e.buttons === 0) return
     e.preventDefault()
-    const currentTime = Date.now()
-    const deltaX = e.touches[0].clientX - startX
-    
-    // Update rotation immediately during drag
-    const rotationDelta = deltaX * SENSITIVITY
+    const currentX = e.clientX
+    const deltaX = currentX - lastPointerXRef.current
+    lastPointerXRef.current = currentX
+
+    dragDistanceRef.current += Math.abs(deltaX)
+    const rotationDelta = deltaX * sensitivity
     updateCarouselRotation(rotationDelta)
-    
-    // Calculate velocity for momentum (simplified for touch)
-    // Convert to degrees per second (assuming ~16ms per frame for touch)
-    const touchVelocity = (rotationDelta * 0.5) * 60 // Scale and convert to per-second
-    rotationVelocityRef.current = touchVelocity
-    
-    setStartX(e.touches[0].clientX)
+    const instantVelocity = (deltaX * sensitivity) / 0.016 // ~60fps
+    rotationVelocityRef.current = instantVelocity
   }
 
-  const handleTouchEnd = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.button !== undefined) return
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    isDraggingRef.current = false
     setIsDragging(false)
-    // Calculate target rotation based on current rotation, snapped to 2° increments
+    // Pointer capture prevents album onClick from firing - handle click here when it was a tap (not drag)
+    if (Math.abs(dragDistanceRef.current) < 5) {
+      const albumEl = pointerDownTargetRef.current?.closest('[data-album-id]')
+      if (albumEl) {
+        const albumId = parseInt(albumEl.getAttribute('data-album-id') ?? '', 10)
+        if (!isNaN(albumId)) {
+          e.preventDefault()
+          e.stopPropagation()
+          router.push(`/album/${albumId}`)
+        }
+      }
+    }
+    pointerDownTargetRef.current = null
+    setTimeout(() => { dragDistanceRef.current = 0 }, 100)
     setCarouselRotation(current => {
       const snappedTarget = snapToAngleStep(current)
       setTargetRotation(snappedTarget)
       return current
     })
-    // Trigger animation - spring physics will pull toward target
     setShouldAnimate(true)
   }
 
-  const handleAlbumClick = (albumId: number) => {
-    if (!isDragging) {
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    handlePointerUp(e)
+  }
+
+  const handleAlbumClick = (e: React.MouseEvent, albumId: number) => {
+    // Only navigate if it was a click (small drag distance) and not currently dragging
+    if (!isDragging && Math.abs(dragDistanceRef.current) < 5) {
+      e.preventDefault()
+      e.stopPropagation()
       router.push(`/album/${albumId}`)
     }
   }
 
+  const sliderControl = (
+    label: string,
+    value: number,
+    onChange: (v: number) => void,
+    min: number,
+    max: number,
+    step: number,
+    format: (v: number) => string
+  ) => (
+    <Box sx={{ width: '100%' }}>
+      <Typography variant="caption" sx={{ color: 'white', display: 'block', marginBottom: '0.5rem' }}>
+        {label}: {format(value)}
+      </Typography>
+      <Slider
+        value={value}
+        onChange={(_, v) => onChange(v as number)}
+        min={min}
+        max={max}
+        step={step}
+        sx={{
+          color: 'white',
+          '& .MuiSlider-thumb': { backgroundColor: 'white' },
+          '& .MuiSlider-track': { backgroundColor: 'white' },
+          '& .MuiSlider-rail': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
+        }}
+      />
+    </Box>
+  )
+
+  const handleResetDefaults = () => {
+    updateSettings({
+      radius: DEFAULT_RADIUS,
+      angleStep: DEFAULT_ANGLE_STEP,
+      centralAlbumScale: DEFAULT_CENTRAL_ALBUM_SCALE,
+      coverScale: DEFAULT_COVER_SCALE,
+      viewMode: DEFAULT_VIEW_MODE,
+      planViewTilt: DEFAULT_PLAN_VIEW_TILT,
+      perspective: DEFAULT_PERSPECTIVE,
+      sensitivity: SENSITIVITY,
+      damping: DEFAULT_DAMPING,
+      springStrength: DEFAULT_SPRING_STRENGTH,
+    })
+  }
+
   return (
-    <div className={styles.carouselContainer}>
+    <div 
+      className={styles.carouselContainer}
+      style={{ perspective: `${perspective}px`, cursor: isDragging ? 'grabbing' : 'grab' }}
+      onPointerDownCapture={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+    >
       <div
         className={styles.carousel}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         style={{
           cursor: isDragging ? 'grabbing' : 'grab',
+          transform: viewMode === 'plan'
+            ? `translateY(${-radius * Math.sin((planViewTilt * Math.PI) / 180)}px) rotateX(${planViewTilt}deg)`
+            : undefined,
         }}
       >
         {visibleAlbums.map((visibleAlbum) => {
@@ -513,8 +556,11 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           const effectiveAngle = baseAngle + carouselRotation
           const absAngle = Math.abs(effectiveAngle)
           
-          // Fixed size - no scaling
           const size = albumSize
+          
+          // Central album scale: interpolate from center (centralAlbumScale) to adjacent albums (1.0)
+          const scaleBlend = Math.max(0, 1 - absAngle / angleStep) // 1 at center, 0 beyond one step
+          const scaleFactor = 1 + (centralAlbumScale - 1) * scaleBlend
           
           // Opacity: fade out albums further from center
           const maxAngle = Math.abs(MAX_ANGLE)
@@ -531,20 +577,25 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
           // Use radius to match xOffset for proper circular arrangement
           const zOffset = -Math.cos(angleRad) * radius // Negative z is "into screen", so center albums are less negative
           
-          // Rotate album about vertical axis to face center
-          // Albums rotate by -effectiveAngle to face forward
+          // Rotate album about vertical axis to face center (tangent to ring)
           const rotationY = -effectiveAngle
+          // Plan view: albums lie flat (rotateX -90°) like records on a turntable
+          const rotationX = viewMode === 'plan' ? -90 : 0
           
           // Z-index: center album (absAngle = 0) should be highest
-          // Higher z-index = appears on top
           const zIndex = Math.round(1000 + (MAX_ANGLE - absAngle) * 10)
+
+          const albumTransform = viewMode === 'plan'
+            ? `translate3d(${xOffset}px, 0, ${zOffset}px) rotateY(${rotationY}deg) rotateX(${rotationX}deg) scale(${scaleFactor})`
+            : `translate3d(${xOffset}px, 0, ${zOffset}px) rotateY(${rotationY}deg) scale(${scaleFactor})`
 
           return (
             <div
               key={`${album.id}-${visibleAlbum.albumIndex}`}
               className={styles.albumItem}
+              data-album-id={album.id}
               style={{
-                transform: `translate3d(${xOffset}px, 0, ${zOffset}px) rotateY(${rotationY}deg)`,
+                transform: albumTransform,
                 opacity,
                 zIndex,
                 width: `${size}px`,
@@ -552,9 +603,24 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
                 marginLeft: `-${size / 2}px`,
                 marginTop: `-${size / 2}px`,
               }}
-              onClick={() => handleAlbumClick(album.id)}
+              onClick={(e) => handleAlbumClick(e, album.id)}
+              onTouchEnd={(e) => {
+                // Handle touch end for mobile Safari
+                if (Math.abs(dragDistanceRef.current) < 5) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  router.push(`/album/${album.id}`)
+                }
+              }}
             >
-              <div className={styles.albumImageContainer}>
+              <div
+                className={styles.albumImageContainer}
+                style={
+                  viewMode === 'plan'
+                    ? { backfaceVisibility: 'visible', WebkitBackfaceVisibility: 'visible' }
+                    : undefined
+                }
+              >
                 <img
                   src={getAlbumImagePath(album.filename, 1)}
                   alt={parseAlbumFilename(album.filename).title}
@@ -568,162 +634,120 @@ export default function AlbumCarousel({ albums }: AlbumCarouselProps) {
         })}
       </div>
       
-      {/* Debug UI Controls */}
-      {debuggerVisible && (
+      {/* Settings toggle button - bottom left, mirrors user button in top right */}
       <Box
+        data-settings-panel
+        sx={{
+          position: 'absolute',
+          bottom: '2rem',
+          left: '2rem',
+          zIndex: 1000,
+        }}
+      >
+        <IconButton
+          onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
+          aria-label="Toggle carousel settings"
+          sx={{
+            color: 'white',
+            backgroundColor: settingsVisible ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+            '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+          }}
+        >
+          <Settings />
+        </IconButton>
+      </Box>
+      
+      {/* Carousel Settings - press '=' to toggle */}
+      {settingsVisible && (
+      <Box
+        data-settings-panel
         sx={{
           position: 'absolute',
           bottom: '2rem',
           left: '50%',
           transform: 'translateX(-50%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          backgroundColor: '#00000088',
+          backdropFilter: 'blur(5px)',
+          WebkitBackdropFilter: 'blur(5px)', // Safari support
           padding: '1.5rem 2rem',
           borderRadius: '12px',
           zIndex: 1000,
-          minWidth: '400px',
+          minWidth: '420px',
+          maxWidth: '90vw',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          touchAction: 'pan-y', // Allow vertical scroll in debug panel (overrides carousel touch-action: none)
           display: 'flex',
           flexDirection: 'column',
           gap: '1rem',
         }}
       >
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'white',
-            textAlign: 'center',
-            fontWeight: 'bold',
-          }}
-        >
-          Rotation: {carouselRotation.toFixed(2)}°
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
+            Carousel Settings
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleResetDefaults}
+            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+          >
+            Reset
+          </Button>
+        </Box>
+        
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+          Rotation: {carouselRotation.toFixed(2)}° · Album size: {albumSize}px · Viewport height: {viewportSize.height}px
         </Typography>
-        
-        <Box sx={{ width: '100%' }}>
-          <Typography
-            variant="caption"
+
+        {/* View mode */}
+        <Box>
+          <Typography variant="caption" sx={{ color: 'white', display: 'block', marginBottom: '0.5rem' }}>
+            View mode
+          </Typography>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v != null && updateSettings({ viewMode: v })}
             sx={{
-              color: 'white',
-              display: 'block',
-              marginBottom: '0.5rem',
+              '& .MuiToggleButton-root': {
+                color: 'white',
+                borderColor: 'rgba(255,255,255,0.5)',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.25)',
+                },
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(179, 179, 179, 0.9)',
+                  color: 'white',
+                  boxShadow: 'inset 0 0 4px rgba(0,0,0,0.25)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.25)',
+                  },
+                },
+              },
             }}
           >
-            Radius: {radius.toLocaleString()}
-          </Typography>
-          <Slider
-            value={radius}
-            onChange={(_, value) => setRadius(value as number)}
-            min={MIN_RADIUS}
-            max={MAX_RADIUS}
-            step={100}
-            sx={{
-              color: 'white',
-              '& .MuiSlider-thumb': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-track': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-rail': {
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              },
-            }}
-          />
+            <ToggleButton value="front" aria-label="Front view (ring)">
+              <ViewCarousel />
+            </ToggleButton>
+            <ToggleButton value="plan" aria-label="Plan view (turntable)">
+              <Album />
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
         
-        <Box sx={{ width: '100%' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'white',
-              display: 'block',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Cover Scale: {coverScale.toFixed(2)}
-          </Typography>
-           <Slider
-             value={coverScale}
-             onChange={(_, value) => setCoverScale(value as number)}
-             min={MIN_COVER_SCALE}
-             max={MAX_COVER_SCALE}
-             step={0.05}
-            sx={{
-              color: 'white',
-              '& .MuiSlider-thumb': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-track': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-rail': {
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              },
-            }}
-          />
-        </Box>
+        {sliderControl('Angular spacing', angleStep, (v) => updateSettings({ angleStep: v }), MIN_ANGLE_STEP, MAX_ANGLE_STEP, 1, (v) => `${v}°`)}
+        {sliderControl('Cover scale', coverScale, (v) => updateSettings({ coverScale: v }), MIN_COVER_SCALE, MAX_COVER_SCALE, 0.05, (v) => `${Math.round(v * 100)}%`)}
+        {sliderControl('Central album scale', centralAlbumScale, (v) => updateSettings({ centralAlbumScale: v }), MIN_CENTRAL_ALBUM_SCALE, MAX_CENTRAL_ALBUM_SCALE, 0.05, (v) => `${Math.round(v * 100)}%`)}
         
-        <Box sx={{ width: '100%' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'white',
-              display: 'block',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Damping: {damping.toFixed(2)}
-          </Typography>
-          <Slider
-            value={damping}
-            onChange={(_, value) => setDamping(value as number)}
-            min={0.0}
-            max={1.0}
-            step={0.01}
-            sx={{
-              color: 'white',
-              '& .MuiSlider-thumb': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-track': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-rail': {
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              },
-            }}
-          />
-        </Box>
+        {viewMode === 'plan' && sliderControl('Plan tilt', planViewTilt, (v) => updateSettings({ planViewTilt: v }), MIN_PLAN_VIEW_TILT, MAX_PLAN_VIEW_TILT, 1, (v) => `${v}°`)}
         
-        <Box sx={{ width: '100%' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'white',
-              display: 'block',
-              marginBottom: '0.5rem',
-            }}
-          >
-            Spring Strength: {springStrength.toFixed(2)}
-          </Typography>
-          <Slider
-            value={springStrength}
-            onChange={(_, value) => setSpringStrength(value as number)}
-            min={0.0}
-            max={1.0}
-            step={0.01}
-            sx={{
-              color: 'white',
-              '& .MuiSlider-thumb': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-track': {
-                backgroundColor: 'white',
-              },
-              '& .MuiSlider-rail': {
-                backgroundColor: 'rgba(255, 255, 255, 0.3)',
-              },
-            }}
-          />
-        </Box>
+        {sliderControl('Perspective', perspective, (v) => updateSettings({ perspective: v }), MIN_PERSPECTIVE, MAX_PERSPECTIVE, 100, (v) => `${v}px`)}
+        {sliderControl('Sensitivity', sensitivity, (v) => updateSettings({ sensitivity: v }), 0.05, 0.5, 0.01, (v) => v.toFixed(2))}
+        {sliderControl('Radius', radius, (v) => updateSettings({ radius: v }), MIN_RADIUS, MAX_RADIUS, 100, (v) => v.toLocaleString())}
+        {sliderControl('Damping', damping, (v) => updateSettings({ damping: v }), 0, 1, 0.01, (v) => v.toFixed(2))}
+        {sliderControl('Spring strength', springStrength, (v) => updateSettings({ springStrength: v }), 0, 1, 0.01, (v) => v.toFixed(2))}
       </Box>
       )}
     </div>
