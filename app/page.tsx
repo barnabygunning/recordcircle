@@ -60,7 +60,7 @@ export default function Home() {
         <AlbumCarousel albums={albums} />
       </div>
 
-      <footer className={styles.footer}>
+      <div className={styles.footer}>
         <IconButton
           onClick={() => updateSettings({ settingsVisible: !settingsVisible })}
           aria-label="Toggle carousel settings"
@@ -72,7 +72,7 @@ export default function Home() {
         >
           <Settings />
         </IconButton>
-      </footer>
+      </div>
     </div>
   )
 }
